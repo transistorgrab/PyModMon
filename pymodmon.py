@@ -671,16 +671,20 @@ class Gui:
     #  if no values are given in some fields the old values are preserved
     #
     def updateCommSettings(self):
-        import ipaddress ## for checking of valid IP address entry
+#!!        import ipaddress ## for checking of valid IP address entry
 
         #print('update Communication Settings:')
         if self.input_ipaddress.get() != '':
-            data.ipaddress = unicode(self.input_ipaddress.get())
+            thisipaddress = unicode(self.input_ipaddress.get())
             ## test if the data seems to be a valid IP address
             try:
-                ipaddress.ip_address(data.ipaddress)
+#!!                ipaddress.ip_address(data.ipaddress)
+                print 'checking IP address'
+                self.ip_address(thisipaddress)
+                data.ipaddress = unicode(self.input_ipaddress.get())
             except:
                 showerror('IP Address Error','the data you entered seems not to be a correct IP address')
+            ## if valid ip address entered store it
 
         if self.input_portno.get() != '':
             ## test if the portnumber seems to be a valid value
@@ -740,6 +744,24 @@ class Gui:
         self.input_inifilename.insert(0,data.inifilename)
 
         self.displaySettings()
+
+    ## function for checking for seemingly correct IP address input
+    #
+    def ip_address(self,address):
+        valid = address.split('.')
+        if len(valid) != 4:
+            print 'Len not sufficient'
+            raise ValueError
+        for element in valid:
+            if not element.isdigit():
+                print element,'is no digit'
+                raise ValueError
+                break
+            i = int(element)
+            if i < 0 or i > 255:
+                print 'partial number',i,'is out of range'
+                raise ValueError
+        return
 
     ## function for selecting configuration export file
     #
