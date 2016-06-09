@@ -16,7 +16,7 @@ Usage:
     pymodmon.py
     pymodmon.py [-h|--help]
     pymodmon.py [--version]
-    pymodmon.py -i <file>|--inifile=<file> [-l <file>|--logfile=<file>] [-L <sec>|--loginterval=<sec>] [-B <buf>|--logbuffer=<buf>] [-S|--single] [--nogui]
+    pymodmon.py -i <file>|--inifile=<file> [-l <file>|--logfile=<file>] [-L <sec>|--loginterval=<sec>] [-B <buf>|--logbuffer=<buf>] [-S|--single] [--nogui] [-D|--daily-log]
     pymodmon.py --ip=<IP-address> --port=<port> --id=<id> --addr=<adr> --type=<TYPE> --format=<FORM> [-L <sec>|--loginterval=<sec>] [-B <buf>|--logbuffer=<buf>] [--descr=<"descr">] [--unit=<"unit">] [-S|--single] [-l <file>|--logfile=<file>]
 
 Options:
@@ -45,6 +45,10 @@ Options:
     -B, --logbuffer=<buf> Read xx datasets before writing to disk.
                           Useful to prevent wearout on solid state devices.
                           [default value: 50]
+    -D, --daily-log       Writes a log file for each day. At 00:00:00 system
+                          time a new log file will be started. A given log file
+                          name will be appended with the current date with 
+                          "%Y-%m-%d" format.
 '''
 
 ## use docopt for command line parsing and displaying help message
@@ -208,7 +212,9 @@ class Inout:
     #  to prevent wearout on solid state disks like SD CARDs
     #
     def writeLoggerDataFile(self):
-        import csv
+        import csv      ## for writing in csv format
+        import datetime ## for daily log option
+
         if (data.logfilename == None): ## when no filename is given, print data to terminal
             if len(data.datawritebuffer) > 0: ## if the buffer has data write this to terminal
                     print (data.datawritebuffer)
@@ -220,9 +226,30 @@ class Inout:
                     data.databuffer = [] ## empty buffer
             return
 
+        thislogfile = data.logfilename  ## store filename locally for daily option
+        thisdate = str(datetime.date.today())
+        gui_checked_daily = 0
+
+        ## is GUI available or is command line mode active
+        if (gui_active):
+            gui_checked_daily = int(gui.checked_daily.get())
+
+        ## if daily option is active
+        if ( (arguments['--daily-log'] == True) or (gui_checked_daily) ):
+            ## assumption: the logfile has a file extension
+            logfileparts = thislogfile.rpartition('.')
+
+            ## if there is no file extension we will append the current date to the name
+            if (logfileparts[0] == ''):
+                ## re-order logfileparts
+                thislogfile = logfileparts[2]+'_'+thisdate
+            else:
+                ## format the new logfilename with current date included
+                thislogfile = logfileparts[0]+'_'+thisdate+logfileparts[1]+logfileparts[2]
+
         ## try to open the file. if it does not exist, create it on the way
         try:
-            open(data.logfilename, 'a').close()
+            open(thislogfile, 'a').close()
         except:
             try: ## if running in command line no window can be displayed
                 showerror('Log File Error','file cannot be accessed, please check.')
@@ -232,8 +259,8 @@ class Inout:
 
 
         ## check if the file is empty, if so write the header information to the file
-        if os.stat(data.logfilename).st_size==0:
-            with open(data.logfilename,'ab') as logfile:
+        if os.stat(thislogfile).st_size==0:
+            with open(thislogfile,'ab') as logfile:
                 logwriter = csv.writer(logfile, quoting=csv.QUOTE_ALL)
                 ## ensure UTF8 encoding while writing
                 ## print out what data is contained and whats its format
@@ -263,12 +290,12 @@ class Inout:
         
         ## if the file is not empty we assume an append write to the file
         if len(data.datawritebuffer) > 0: ## if the buffer has data write this to disk
-            with open(data.logfilename,'ab') as logfile:
+            with open(thislogfile,'ab') as logfile:
                 logwriter = csv.writer(logfile)
                 logwriter.writerows(data.datawritebuffer)
                 data.datawritebuffer = [] ## empty buffer
         else: ## we asume that this was called outside the poll loop with buffer size not reached
-            with open(data.logfilename,'ab') as logfile:
+            with open(thislogfile,'ab') as logfile:
                 logwriter = csv.writer(logfile)
                 logwriter.writerows(data.databuffer)
                 data.databuffer = [] ## empty buffer
@@ -356,7 +383,7 @@ class Inout:
         stampedvector.append(str(datetime.datetime.now()).partition('.')[0])
         stampedvector += data.datavector
         data.databuffer.append(stampedvector)
-        #print self.data.databuffer
+        #print data.databuffer
         ## is the buffer large enough to be written to file system?
         if (len(data.databuffer) >= data.logmaxbuffer):
             ## ensure that the data to write will not be altered by faster poll cycles
@@ -398,7 +425,6 @@ class Inout:
 #
 class Gui:
     def __init__(self,master):
-#!!        #self.data = Data()#,0,0,0,0,0,0) # create data object for this instance
 
         ## configure app window
         master.title('Python Modbus Monitor')
@@ -468,8 +494,16 @@ class Gui:
 
         Button(filesframe,text='…',command=(self.selectLoggerDataFile)).grid(row=1,column=2,sticky='W') ## opens dialog to choose file from
 
-        Button(filesframe,text='⟲ Re-Read Configuration', command=(self.displaySettings)).grid(row=2,column=0,sticky='W') ## triggers re-read of the configuration file
-        Button(filesframe,text='⤓ Save Current Configuration', command=(inout.writeExportFile)).grid(row=2,column=1,sticky='W') ## triggers re-read of the configuration file
+        ## enable daily log option in GUI, has no own action, will be regarded during log write
+        self.checked_daily = IntVar()
+        self.checkManageData=Checkbutton(filesframe,
+                                         text='Create daily log file',
+                                         variable=self.checked_daily
+                                         )
+        self.checkManageData.grid(row=2,column=0,columnspan=3)
+
+        Button(filesframe,text='⟲ Re-Read Configuration', command=(self.displaySettings)).grid(row=3,column=0,sticky='W') ## triggers re-read of the configuration file
+        Button(filesframe,text='⤓ Save Current Configuration', command=(inout.writeExportFile)).grid(row=3,column=1,sticky='W') ## triggers re-read of the configuration file
 
         ## buttons for starting and stopping data retrieval from the addressed target
         #
@@ -683,7 +717,6 @@ class Gui:
             thisipaddress = unicode(self.input_ipaddress.get())
             ## test if the data seems to be a valid IP address
             try:
-                print 'checking IP address'
                 self.ip_address(thisipaddress)
                 data.ipaddress = unicode(self.input_ipaddress.get())
             except:
@@ -754,16 +787,13 @@ class Gui:
     def ip_address(self,address):
         valid = address.split('.')
         if len(valid) != 4:
-            print 'Len not sufficient'
             raise ValueError
         for element in valid:
             if not element.isdigit():
-                print element,'is no digit'
                 raise ValueError
                 break
             i = int(element)
             if i < 0 or i > 255:
-                print 'partial number',i,'is out of range'
                 raise ValueError
         return
 
@@ -784,21 +814,21 @@ class Gui:
     ## function for choosing logger data file
     #
     def selectLoggerDataFile(self):
-        data.logfilename = asksaveasfilename(initialfile = self.data.logfilename, title = 'Choose File for Logger Data', defaultextension='.csv',filetypes=[('CSV file','*.csv'), ('All files','*.*')])
+        data.logfilename = asksaveasfilename(initialfile = data.logfilename, title = 'Choose File for Logger Data', defaultextension='.csv',filetypes=[('CSV file','*.csv'), ('All files','*.*')])
         self.input_logfilename.delete(0,END)
-        self.input_logfilename.insert(0,self.data.logfilename)
+        self.input_logfilename.insert(0,data.logfilename)
 
-        ## for logging purposes we need a time stamp first
-        stampedvector = []
-        stampedvector.append(str(datetime.datetime.now()))
-        stampedvector += data.datavector
-        data.databuffer.append(stampedvector)
-        ## is the buffer large enough to be written to file system?
-        if (len(data.databuffer) >= data.logmaxbuffer):
-            ## ensure that the data to write will not be altered by faster poll cycles
-            data.datawritebuffer = data.databuffer
-            data.databuffer = [] ## empty the buffer
-            inout.writeLoggerDataFile() ## call write routine to save data on disk
+#!!        ## for logging purposes we need a time stamp first
+#!!        stampedvector = []
+#!!        stampedvector.append(str(datetime.datetime.now()))
+#!!        stampedvector += data.datavector
+#!!        data.databuffer.append(stampedvector)
+#!!        ## is the buffer large enough to be written to file system?
+#!!        if (len(data.databuffer) >= data.logmaxbuffer):
+#!!            ## ensure that the data to write will not be altered by faster poll cycles
+#!!            data.datawritebuffer = data.databuffer
+#!!            data.databuffer = [] ## empty the buffer
+#!!            inout.writeLoggerDataFile() ## call write routine to save data on disk
 
     ## function for updating the current received data on display
     #
@@ -822,13 +852,13 @@ class Gui:
     #   with the path entered into the text field
     #
     def getInputFile(self,event):
-        self.data.inifilename = event.widget.get()
+        data.inifilename = event.widget.get()
 
     ## function for updating the log file path
     #   with the path entered into the entry field
     #
     def setLogFile(self,event):
-        self.data.logfilename = event.widget.get()
+        data.logfilename = event.widget.get()
 
     ## function adds dataset to the datasets list
     #   also updates the displayed list
@@ -841,7 +871,7 @@ class Gui:
                           self.input_description.get(),
                           self.input_dataunit.get()])
         self.displayDatasets()
-        #print (self.data.datasets)
+        #print (data.datasets)
 
     ## function for displaying the about dialog
     #
