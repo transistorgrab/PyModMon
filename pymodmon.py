@@ -821,7 +821,7 @@ class Gui:
     #
     def aboutDialog(self):
         showinfo('About Python Modbus Monitor'\
-                 ,'This is a program that acts as a modbus master to receive data from modbus slaves like SMA solar inverters. \nYou can choose the data to be recalled via the GUI and see the live data. \nYou can also call the programm from the command line with a configuration file given for the data to be retrieved. \nThe configuration file can be generated using the GUI command \"File\"→\"Export Configuration\"')
+                 ,'This is a program that acts as a modbus slave to receive data from modbus masters like SMA solar inverters. \nYou can choose the data to be received via the GUI and see the live data. \nYou can also call the programm from the command line with a configuration file given for the data to be retrieved. \nThe configuration file can be generated using the GUI command \"File\"→\"Export Configuration\"')
         
     ## function for closing the program window
     #
