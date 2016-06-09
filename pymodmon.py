@@ -647,38 +647,42 @@ class Gui:
         self.current_ipaddress.grid (row=2,column=1,sticky='EW')
         self.input_ipaddress = Entry(self.settingsframe, width=15, fg='blue')
         self.input_ipaddress.grid(row=2,column=2, sticky = 'W') # needs to be on a seperate line for variable to work
+        self.input_ipaddress.bind('<Return>',self.updateCommSettings) ## enable the Entry to update without button click
+
         self.current_portno = Label(self.settingsframe, text=data.portno, bg='white')
         self.current_portno.grid (row=3,column=1,sticky='EW')
         self.input_portno = Entry(self.settingsframe, width=5, fg='blue')
         self.input_portno.grid(row=3,column=2, sticky = 'W')
+        self.input_portno.bind('<Return>',self.updateCommSettings) ## update without button click
 
         self.current_modbusid = Label(self.settingsframe, text=data.modbusid, bg='white')
         self.current_modbusid.grid (row=4,column=1,sticky='EW')
         self.input_modbusid = Entry(self.settingsframe, width=5, fg='blue')
         self.input_modbusid.grid(row=4,column=2, sticky = 'W')
+        self.input_modbusid.bind('<Return>',self.updateCommSettings) ## update without button click
 
         self.current_manufacturer = Label(self.settingsframe, text=data.manufacturer, bg='white')
         self.current_manufacturer.grid (row=5,column=1,sticky='EW')
         self.input_manufacturer = Entry(self.settingsframe, width=25, fg='blue')
         self.input_manufacturer.grid(row=5,column=2, sticky = 'W')
+        self.input_manufacturer.bind('<Return>',self.updateCommSettings) ## update without button click
 
         self.current_loginterval = Label(self.settingsframe, text=data.loginterval, bg='white')
         self.current_loginterval.grid (row=6,column=1,sticky='EW')
         self.input_loginterval = Entry(self.settingsframe, width=3, fg='blue')
         self.input_loginterval.grid(row=6,column=2, sticky = 'W')
+        self.input_loginterval.bind('<Return>',self.updateCommSettings) ## update without button click
         
     ## function for updating communication parameters with input sanitation
     #  if no values are given in some fields the old values are preserved
     #
-    def updateCommSettings(self):
-#!!        import ipaddress ## for checking of valid IP address entry
+    def updateCommSettings(self,*args):
 
         #print('update Communication Settings:')
         if self.input_ipaddress.get() != '':
             thisipaddress = unicode(self.input_ipaddress.get())
             ## test if the data seems to be a valid IP address
             try:
-#!!                ipaddress.ip_address(data.ipaddress)
                 print 'checking IP address'
                 self.ip_address(thisipaddress)
                 data.ipaddress = unicode(self.input_ipaddress.get())
