@@ -335,10 +335,22 @@ class Inout:
 
         ## request each register from datasets, omit first row which contains only column headers
         for thisrow in data.datasets[1:]:
-            received = self.client.read_input_registers(address = int(thisrow[0]),
+            ## if the connection is somehow not possible (e.g. target not responding)
+            #  show a error message instead of excepting and stopping
+            try:
+                received = self.client.read_input_registers(address = int(thisrow[0]),
                                                      count = data.moddatatype[thisrow[1]],
                                                       unit = data.modbusid)
-    
+            except:
+                thisdate = str(datetime.datetime.now()).partition('.')[0]
+                thiserrormessage = thisdate + ': Connection not possible. Check settings or connection.'
+                if (gui_active):
+                    showerror('Connection Error',thiserrormessage)
+                    return  ## prevent further execution of this function
+                else:
+                    print thiserrormessage
+                    return  ## prevent further execution of this function
+
             message = BinaryPayloadDecoder.fromRegisters(received.registers, endian=Endian.Big)
             ## provide the correct result depending on the defined datatype
             if thisrow[1] == 'S32':
