@@ -830,18 +830,6 @@ class Gui:
         self.input_logfilename.delete(0,END)
         self.input_logfilename.insert(0,data.logfilename)
 
-#!!        ## for logging purposes we need a time stamp first
-#!!        stampedvector = []
-#!!        stampedvector.append(str(datetime.datetime.now()))
-#!!        stampedvector += data.datavector
-#!!        data.databuffer.append(stampedvector)
-#!!        ## is the buffer large enough to be written to file system?
-#!!        if (len(data.databuffer) >= data.logmaxbuffer):
-#!!            ## ensure that the data to write will not be altered by faster poll cycles
-#!!            data.datawritebuffer = data.databuffer
-#!!            data.databuffer = [] ## empty the buffer
-#!!            inout.writeLoggerDataFile() ## call write routine to save data on disk
-
     ## function for updating the current received data on display
     #
     def updateLoggerDisplay(self):
