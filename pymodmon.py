@@ -47,7 +47,7 @@ Options:
                           [default value: 50]
     -D, --daily-log       Writes a log file for each day. At 00:00:00 system
                           time a new log file will be started. A given log file
-                          name will be appended with the current date with 
+                          name will be appended with the current date with
                           "%Y-%m-%d" format.
 '''
 
@@ -74,7 +74,7 @@ except ImportError:
     except:
         print ('Import errror. pymodbus package was not found on your system. Please install it using the command: "pip install pymodbus"')
 
-## enable execution of functions on program exit    
+## enable execution of functions on program exit
 import atexit
 
 ## enable timed execution of the data polling
@@ -202,7 +202,7 @@ class Inout:
         Config.set('FileSettings','log buffer',data.logmaxbuffer)
         Config.add_section('TargetDataSettings')
         Config.set('TargetDataSettings','data table',data.datasets)
-        
+
         Config.write(inifile)
         inifile.close()
 
@@ -222,7 +222,7 @@ class Inout:
             else: ## we asume that this was called outside the poll loop with buffer size not reached
                     print(data.databuffer)
                     if (len(data.databuffer) == 1): ## if only one address was provided via command line
-                        print data.databuffer[0][0],data.datasets[1][3],data.databuffer[0][1],data.datasets[1][4] 
+                        print data.databuffer[0][0],data.datasets[1][3],data.databuffer[0][1],data.datasets[1][4]
                     data.databuffer = [] ## empty buffer
             return
 
@@ -287,7 +287,7 @@ class Inout:
 
                 columnheader += '\n' ## line break before data rows
                 logfile.write(columnheader)
-        
+
         ## if the file is not empty we assume an append write to the file
         if len(data.datawritebuffer) > 0: ## if the buffer has data write this to disk
             with open(thislogfile,'ab') as logfile:
@@ -310,7 +310,7 @@ class Inout:
             self.client.connect()
         except:
             showerror('Modbus Connection Error','could not connect to target. Check your settings, please.')
-        
+
         self.pollTargetData()
 
         self.client.close()
@@ -323,7 +323,7 @@ class Inout:
         self.commtimer.cancel()
         ## flush data buffer to disk
         self.writeLoggerDataFile()
-    
+
     ## function for polling data from the target and triggering writing to log file if set
     #
     def pollTargetData(self):
@@ -351,7 +351,7 @@ class Inout:
                     print thiserrormessage
                     return  ## prevent further execution of this function
 
-            message = BinaryPayloadDecoder.fromRegisters(received.registers, endian=Endian.Big)
+            message = BinaryPayloadDecoder.fromRegisters(received.registers, byteorder=Endian.Big, wordorder=Endian.Big)
             ## provide the correct result depending on the defined datatype
             if thisrow[1] == 'S32':
                 interpreted = message.decode_32bit_int()
@@ -475,10 +475,10 @@ class Gui:
         toolmenu = Menu(menubar, tearoff=0)
         toolmenu.add_command(label='Data Settings…',command=self.dataSettings)
         toolmenu.add_command(label='Print Config Data',command=inout.printConfig)
-        
+
         helpmenu = Menu(menubar, tearoff=0)
         helpmenu.add_command(label='About…',command=self.aboutDialog)
-        
+
         menubar.add_cascade(label='File', menu=filemenu)
         menubar.add_cascade(label='Tools', menu=toolmenu)
         menubar.add_cascade(label='Help', menu=helpmenu)
@@ -493,7 +493,7 @@ class Gui:
         self.input_inifilename = Entry(filesframe, width = 40)
         self.input_inifilename.bind('<Return>',self.getInputFile)   ## enable file name to be set by [Enter] or [Return]
         self.input_inifilename.grid(row=0,column=1,sticky='EW')     ## make input field streching with window
-        
+
         Button(filesframe,text='…',command=(self.selectImportFile)).grid(row=0,column=2,sticky='W') ## opens dialog to choose file from
 
         ## input mask for data logger file
@@ -522,7 +522,7 @@ class Gui:
 
         ## Button for starting communication and starting writing to logger file
         self.commButton = Button(controlframe,text='▶ Start Communication',bg='lightblue', command=self.startCommunication)
-        self.commButton.grid(row=0,column=1,sticky='W') 
+        self.commButton.grid(row=0,column=1,sticky='W')
 
         ## fields for configuring the data connection
         #
@@ -569,7 +569,7 @@ class Gui:
         self.input_dataunit.grid(row=2,column=4)
 
         Button(self.datasettingsframe,text='+',font='-weight bold',bg='lightyellow',command=(self.addNewDataset)).grid(row=2,column=6)
-        
+
         ## checkbutton to enable manipulation of the entered data.
         #  this is slow, therefore not enabled by default. Also it alters the display layout.
         self.checked_manage = IntVar()
@@ -613,7 +613,7 @@ class Gui:
     def update_data_layout(self):
         self.dataframe.update_idletasks()
         self.datacanvas.configure(scrollregion=self.datacanvas.bbox('all'))
-        
+
 
     def displaySettings(self):
         ## read import file and update displayed data
@@ -669,7 +669,7 @@ class Gui:
             Label(self.datadisplayframe,width=6,text=thisdata[4]).grid(row=(counter),column=8)
 
         self.update_data_layout()
-   
+
     ## reorder the datasets, move current dataset one up
     def moveDatasetUp(self,current_position):
         i = current_position
@@ -718,7 +718,7 @@ class Gui:
         self.input_loginterval = Entry(self.settingsframe, width=3, fg='blue')
         self.input_loginterval.grid(row=6,column=2, sticky = 'W')
         self.input_loginterval.bind('<Return>',self.updateCommSettings) ## update without button click
-        
+
     ## function for updating communication parameters with input sanitation
     #  if no values are given in some fields the old values are preserved
     #
@@ -878,7 +878,7 @@ class Gui:
     def aboutDialog(self):
         showinfo('About Python Modbus Monitor'\
                  ,'This is a program that acts as a modbus slave to receive data from modbus masters like SMA solar inverters. \nYou can choose the data to be received via the GUI and see the live data. \nYou can also call the programm from the command line with a configuration file given for the data to be retrieved. \nThe configuration file can be generated using the GUI command \"File\"→\"Export Configuration\"')
-        
+
     ## function for closing the program window
     #
     def closeWindow(self):
@@ -909,7 +909,7 @@ if (arguments['--nogui'] == False):
         if (arguments['--inifile'] != None):
             inout.checkImportFile()
             gui.displaySettings()
-    
+
         mainloop()
         exit() ## if quitting from GUI do not proceed further down to command line handling
     except TclError:
@@ -981,4 +981,3 @@ if (arguments['--single'] == True):
 #from time import sleep
 #while True:
 #    sleep(15)
-    
