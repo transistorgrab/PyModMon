@@ -6,7 +6,7 @@
 # display modbus slave data.
 # requires: Python 3.7, pymodbus, docopt
 #
-# Date created: 2016-05-04
+# Date created: 2019-02-25
 # Author: André Schieleit
 
 ## help message to display by docopt (and parsed by docopt for command line arguments)
@@ -267,7 +267,6 @@ class Inout:
                 ## ensure UTF8 encoding while writing
                 ## print out what data is contained and whats its format
                 for thisrow in data.datasets:
-##!                    thisrow = [s.encode('utf-8') for s in thisrow]
                     logwriter.writerows([thisrow])
 
                 logfile.write('-'*50+'\n') ## write a separator
@@ -978,10 +977,3 @@ if (arguments['--single'] == True):
     inout.stopCommunication()
     print('single run')
     exit()
-
-## since we start a timer thread for periodic pulling of data we need no "while True:" loop
-# for staying in the application
-#from time import sleep
-#while True:
-#    sleep(15)
-    
