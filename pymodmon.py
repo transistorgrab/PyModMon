@@ -257,7 +257,6 @@ class Inout:
                 print('Log file error. File cannot be accessed, please check.')
             return
 
-
         ## check if the file is empty, if so write the header information to the file
         if os.stat(thislogfile).st_size==0:
             with open(thislogfile,'ab') as logfile:
@@ -975,9 +974,3 @@ if (arguments['--single'] == True):
     inout.stopCommunication()
     print 'single run'
     exit()
-
-## since we start a timer thread for periodic pulling of data we need no "while True:" loop
-# for staying in the application
-#from time import sleep
-#while True:
-#    sleep(15)
