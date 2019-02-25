@@ -12,3 +12,5 @@ Dependencies:
 * Python 2.7
 * Python package docopt
 * Python package pymodbus (and dependencies)
+
+pymodmon_3.py is the updated version for Python 3 (tested with Python 3.7). No additional functionality was added.
