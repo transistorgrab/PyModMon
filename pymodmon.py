@@ -3,7 +3,7 @@
 ## @package pymodmon
 # Python Modbus Monitor
 # a small program that uses the pymodbus package to retrieve and
-# display modbus slave data.
+# display modbus subordinate data.
 # requires: Python 2.7, pymodbus, docopt
 #
 # Date created: 2016-05-04
@@ -435,13 +435,13 @@ class Inout:
 ## class that contains all GUI specifics
 #
 class Gui:
-    def __init__(self,master):
+    def __init__(self,main):
 
         ## configure app window
-        master.title('Python Modbus Monitor')
-        master.minsize(width=550, height=450)
-        master.geometry("550x550")  ## scale window a bit bigger for more data lines
-        self.settingscanvas = Canvas(master,bg="yellow",highlightthickness=0)
+        main.title('Python Modbus Monitor')
+        main.minsize(width=550, height=450)
+        main.geometry("550x550")  ## scale window a bit bigger for more data lines
+        self.settingscanvas = Canvas(main,bg="yellow",highlightthickness=0)
         self.settingscanvas.pack(side='top',anchor='nw',expand=False,fill='x')
 
         ## make the contents of settingscanvas fit the window width
@@ -463,7 +463,7 @@ class Gui:
         controlframe.grid(sticky = 'EW')
 
         ## create Menu
-        menubar = Menu(master)
+        menubar = Menu(main)
         filemenu = Menu(menubar, tearoff=0)
         filemenu.add_command(label='Import Configuration File…',command=self.selectImportFile)
         filemenu.add_command(label='Export Configuration File…',command=self.selectExportFile)
@@ -481,7 +481,7 @@ class Gui:
         menubar.add_cascade(label='File', menu=filemenu)
         menubar.add_cascade(label='Tools', menu=toolmenu)
         menubar.add_cascade(label='Help', menu=helpmenu)
-        master.config(menu=menubar)
+        main.config(menu=menubar)
 
         ## add GUI elements
 
@@ -580,7 +580,7 @@ class Gui:
         self.checkManageData.grid(row=3,column=0,columnspan=3)
 
         ## canvas for displaying monitored data
-        self.datacanvas = Canvas(master,bd=1,bg="green",highlightthickness=0)
+        self.datacanvas = Canvas(main,bd=1,bg="green",highlightthickness=0)
         self.datacanvas.pack(anchor='sw',side='top',expand=True,fill='both')
         ## frame that holds all data to display. the static data table and the polled data
         self.dataframe = Frame(self.datacanvas)
@@ -876,7 +876,7 @@ class Gui:
     #
     def aboutDialog(self):
         showinfo('About Python Modbus Monitor'\
-                 ,'This is a program that acts as a modbus slave to receive data from modbus masters like SMA solar inverters. \nYou can choose the data to be received via the GUI and see the live data. \nYou can also call the programm from the command line with a configuration file given for the data to be retrieved. \nThe configuration file can be generated using the GUI command \"File\"→\"Export Configuration\"')
+                 ,'This is a program that acts as a modbus subordinate to receive data from modbus mains like SMA solar inverters. \nYou can choose the data to be received via the GUI and see the live data. \nYou can also call the programm from the command line with a configuration file given for the data to be retrieved. \nThe configuration file can be generated using the GUI command \"File\"→\"Export Configuration\"')
 
     ## function for closing the program window
     #
