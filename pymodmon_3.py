@@ -74,6 +74,14 @@ except ImportError:
     except:
         print('Import errror. pymodbus package was not found on your system. Please install it using the command: "pip install pymodbus"')
 
+## pymodbus changed its API with version 3.1, so we need to know what version we are importing
+import pymodbus as pm
+pm_version = pm.__version__
+import pkg_resources
+pymodbus_version = "≥3"
+if pkg_resources.parse_version(pm_version) < pkg_resources.parse_version("3.0.0"):
+    pymodbus_version = "legacy"
+
 ## enable execution of functions on program exit    
 import atexit
 
@@ -101,6 +109,7 @@ class Data(object):
                 'U32':2,
                 'U64':4,
                 'STR32':16,
+                'STR24':12,             ## this length is acutally depending on the actual register read
                 'S16':1,
                 'U16':1
                 }
@@ -304,7 +313,11 @@ class Inout:
     ## function for starting communication with target
     #
     def runCommunication(self):
-        from pymodbus.client.sync import ModbusTcpClient as ModbusClient
+        ## pymodbus changed its API with >= 3.1. so we need to check what needs to be called
+        if pymodbus_version == "legacy":
+            from pymodbus.client.sync import ModbusTcpClient as ModbusClient
+        else:
+            from pymodbus.client import ModbusTcpClient as ModbusClient
 
         self.client = ModbusClient(host=data.ipaddress, port=data.portno)
         try:
@@ -339,9 +352,15 @@ class Inout:
             ## if the connection is somehow not possible (e.g. target not responding)
             #  show a error message instead of excepting and stopping
             try:
-                received = self.client.read_input_registers(address = int(thisrow[0]),
-                                                     count = data.moddatatype[thisrow[1]],
-                                                      unit = data.modbusid)
+                if pymodbus_version == "legacy":
+                    received = self.client.read_input_registers(address = int(thisrow[0]),
+                                                        count = data.moddatatype[thisrow[1]],
+                                                        unit = data.modbusid)
+                else:
+                    received = self.client.read_input_registers(address = int(thisrow[0]),
+                                                        count = data.moddatatype[thisrow[1]],
+                                                        slave = data.modbusid)
+
             except:
                 thisdate = str(datetime.datetime.now()).partition('.')[0]
                 thiserrormessage = thisdate + ': Connection not possible. Check settings or connection.'
@@ -362,6 +381,8 @@ class Inout:
                 interpreted = message.decode_64bit_uint()
             elif thisrow[1] == 'STR32':
                 interpreted = message.decode_string(32).decode("utf-8").strip('\x00') ## convert bytes to str
+            elif thisrow[1] == 'STR24': ## workaround when SMA shorted the length of a string register to 24 bytes
+                interpreted = message.decode_string(24).decode("utf-8").strip('\x00') ## convert bytes to str
             elif thisrow[1] == 'S16':
                 interpreted = message.decode_16bit_int()
             elif thisrow[1] == 'U16':
