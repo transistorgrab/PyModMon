@@ -1,23 +1,30 @@
 # coding=UTF-8
 
-## @package pymodmon
-# Python Modbus Monitor
+## @package pymodmon_LCD
+# Python Modbus Monitor for LCD output
 # a small program that uses the pymodbus package to retrieve and
 # display modbus slave data.
-# requires: Python 3.7, pymodbus, docopt
+# Can also output to an 128×64 I²C OLED display.
+# requires: Python 2.7, pymodbus, docopt, Adafruit_SSD1306
 #
-# Date created: 2019-02-25
+# Date created: 2017-06-11
 # Author: André Schieleit
 
 ## help message to display by docopt (and parsed by docopt for command line arguments)
-'''Python Modbus Monitor.
+'''Python Modbus Monitor LCD display module.
+This module will display Data on a LCD with 4 lines and 20 characters
+Up to 8 data can be displayed.
+When calling with commandline parameters it is possible to set the line and
+column where the data will be displayed. This enables to run it multiple times
+with different parameters and display them all on the same display on different
+locations.
 
 Usage:
-    pymodmon.py
-    pymodmon.py [-h|--help]
-    pymodmon.py [--version]
-    pymodmon.py -i <file>|--inifile=<file> [-l <file>|--logfile=<file>] [-L <sec>|--loginterval=<sec>] [-B <buf>|--logbuffer=<buf>] [-S|--single] [--nogui] [-D|--daily-log]
-    pymodmon.py --ip=<IP-address> --port=<port> --id=<id> --addr=<adr> --type=<TYPE> --format=<FORM> [-L <sec>|--loginterval=<sec>] [-B <buf>|--logbuffer=<buf>] [--descr=<"descr">] [--unit=<"unit">] [-S|--single] [-l <file>|--logfile=<file>]
+    pymodmon_lcd.py
+    pymodmon_lcd.py [-h|--help]
+    pymodmon_lcd.py [--version]
+    pymodmon_lcd.py -i <file>|--inifile=<file> [-L <sec>|--loginterval=<sec>] [-S|--single] [--nogui] [-O|--oled] [-P|--printtoconsole]
+    pymodmon_lcd.py --ip=<IP-address> --port=<port> --id=<id> --addr=<adr> --type=<TYPE> --format=<FORM> [-L <sec>|--loginterval=<sec>] [--descr=<"descr">] [--lcdl=<lcd-line>] [--lcdc=<lcd-column>] [--unit=<"unit">] [-S|--single] 
 
 Options:
     no options given in a xterm will open the TK interface
@@ -25,9 +32,6 @@ Options:
     --version             Show version
     -i, --inifile=<file>  Uses the given file as input for communication and
                           log file settings and channel configuration
-    -l, --logfile=<file>  Uses the given file as output for the retrieved data.
-                          The data will be formatted in csv.
-                          Existing files will be appended.
     --ip=<IP-address>     Use this as the IP address of the communication target
     --port=<port>         Port of the communication target
     --id=<id>             Modbus ID of the communication target
@@ -39,49 +43,50 @@ Options:
     --descr=<descr>       Description for the retrieved data.
                           e.g. --descr="device name"
     --unit=<unit>         Unit of the retrieved data. e.g. --unit="V"
-    -G, --nogui           Explicitly run without gui even when available
+    --lcdl=<lcd-line>     line of the lcd where the data will be output,
+                          when lcdl or lcdc is omitted, the LCD will be cleared
+                          and line 1 and column1 will be used
+    --lcdc=<lcd-column>   column of the lcd where the data will be output
+                          when lcdl or lcdc is omitted, the LCD will be cleared
+                          and line 1 and column1 will be used
     -S, --single          Do only one read cycle instead of continuous reading.
     -L, --loginterval=<sec>  Read data every xx seconds. [defaul value: 5]
-    -B, --logbuffer=<buf> Read xx datasets before writing to disk.
-                          Useful to prevent wearout on solid state devices.
-                          [default value: 50]
-    -D, --daily-log       Writes a log file for each day. At 00:00:00 system
-                          time a new log file will be started. A given log file
-                          name will be appended with the current date with 
-                          "%Y-%m-%d" format.
+    -O, --oled            display data also on OLED
+    -P, --printtoconsole  displays the data on console additionally to the
+                          LCD on Raspberry Pi
 '''
 
-import tkinter as tk
 ## use docopt for command line parsing and displaying help message
 try:
     import docopt
 except ImportError:
     try: ## for command line showerror does not work
-        tk.showerror('Import Error','docopt package was not found on your system.\nPlease install it using the command:\
+        showerror('Import Error','docopt package was not found on your system.\nPlease install it using the command:\
                                 \n"pip install docopt"')
     except:
-        print('Import errror. docopt package was not found on your system. Please install it using the command: "pip install docopt"')
+        print ('Import errror. docopt package was not found on your system. Please install it using the command: "pip install docopt"')
 from docopt import docopt
 if __name__ == '__main__':
-    arguments = docopt(__doc__, version='PyModMon 1.0')
+    arguments = docopt(__doc__, version='PyModMonLCD 1.0')
 
 ## use pymodbus for the Modbus communication
 try:
     from pymodbus import *
 except ImportError:
     try: ## for command line showerror does not work
-        tk.showerror('Import Error','pymodbus package was not found on your system.\nPlease install it using the command:\
+        showerror('Import Error','pymodbus package was not found on your system.\nPlease install it using the command:\
                                 \n"pip install pymodbus"')
     except:
-        print('Import errror. pymodbus package was not found on your system. Please install it using the command: "pip install pymodbus"')
+        print ('Import errror. pymodbus package was not found on your system. Please install it using the command: "pip install pymodbus"')
 
-## pymodbus changed its API with version 3.1, so we need to know what version we are importing
-import pymodbus as pm
-pm_version = pm.__version__
-import pkg_resources
-pymodbus_version = "≥3"
-if pkg_resources.parse_version(pm_version) < pkg_resources.parse_version("3.0.0"):
-    pymodbus_version = "legacy"
+## use Adafruit_SSD1306 for the I²C communication
+try:
+    from Adafruit_SSD1306 import *
+except ImportError:
+    try: ## for command line showerror does not work
+        showerror('Import Error','Adafruit_SSD1306 package was not found on your system.\nPlease install it using the command:\n"git clone https://github.com/adafruit/Adafruit_Python_SSD1306.git"\n"and in the downloaded directory Adafruit_Python_SSD1306:"\n"sudo python setup.py install"')
+    except:
+        print ('Import errror. Adafruit_SSD1306 package was not found on your system. Please install it using the command: "git clone https://github.com/adafruit/Adafruit_Python_SSD1306.git" and in the downloaded directory Adafruit_Python_SSD1306: "sudo python setup.py install"')
 
 ## enable execution of functions on program exit    
 import atexit
@@ -98,19 +103,16 @@ class Data(object):
     ## set default values and allowed input values
     def __init__(self):
         self.inifilename = None
-        self.logfilename = None
-        self.logmaxbuffer = 50          ## how many records will be buffered before writing to file
         self.ipaddress = '10.0.0.42'    ## address of the communication target
         self.portno =   502             ## port number of the target
         self.modbusid = 3               ## bus ID of the target
-        self.manufacturer = 'Default Manufacturer' ## arbitrary string for user conveniance
+        self.manufacturer = 'Default Manufacturer' ## arbitrary string for user convenience
         self.loginterval = 5            ## how often should data be pulled from target in seconds
         self.moddatatype = {            ## allowed data types, sent from target
                 'S32':2,
                 'U32':2,
                 'U64':4,
                 'STR32':16,
-                'STR24':12,             ## this length is acutally depending on the actual register read
                 'S16':1,
                 'U16':1
                 }
@@ -122,7 +124,7 @@ class Data(object):
 
         self.datavector = []        ## holds the polled data from target
         self.databuffer = []        ## holds the datavectors before writing to disk
-        self.datawritebuffer = []   ## holds a copy of databuffer for actual writing to disk
+        self.datawritebuffer = []   ## holds data before printing to LCD
 
 ## class that contains all IO specifics
 class Inout:
@@ -131,6 +133,56 @@ class Inout:
     #  they are the equivalent to None
     MIN_SIGNED   = -2147483648
     MAX_UNSIGNED =  4294967295
+    running_on_RPi = True
+    oled_active = 0
+
+    #import Raspberry Pi GPIO library
+    try:
+        import RPi.GPIO as GPIO
+    except:
+        ## if we have a GUI display an error dialog
+        try:
+                showerror('Import Error','RPi.GPIO not found. Either this is no Rasberry Pi or the library is missing.')
+        except: ## if no GUI display error and exit
+            print('RPi.GPIO not found. Either this is no Rasberry Pi or the library is missing.')
+            running_on_RPi = False
+            
+    import time
+     
+    # Functions for OLED display functions
+    from PIL import Image, ImageDraw, ImageFont
+
+    # set initial values for OLED
+    OLEDwidth  = 32
+    OLEDwidth  = 32
+    OLEDcanvas = object()
+    OLEDdisp   = object()
+    OLEDfont   = ""
+
+    # Define GPIO to LCD mapping
+    LCD_RS = 7
+    LCD_E  = 8
+    LCD_D4 = 25
+    LCD_D5 = 24
+    LCD_D6 = 23
+    LCD_D7 = 18
+     
+    # Define some device constants
+    LCD_WIDTH = 20    # Maximum characters per line
+    LCD_CHR = True
+    LCD_CMD = False
+     
+    LCD_LINE_1 = 0x80 # LCD RAM address for the 1st line
+    LCD_LINE_2 = 0xC0 # LCD RAM address for the 2nd line
+    LCD_LINE_3 = 0x94 # LCD RAM address for the 3rd line
+    LCD_LINE_4 = 0xD4 # LCD RAM address for the 4th line
+     
+    # Timing constants
+    E_PULSE = 0.0005
+    E_DELAY = 0.0005
+    
+    lcd_line     = 1
+    lcd_column   = 1
 
     ## function for testing the per command line specified configuration file
     def checkImportFile(self):
@@ -141,7 +193,7 @@ class Inout:
         except:
             ## if we have a GUI display an error dialog
             try:
-                tk.showerror('Import Error','The specified configuration file was not found.')
+                showerror('Import Error','The specified configuration file was not found.')
                 return
             except: ## if no GUI display error and exit
                 print('Configuration file error. A file with that name seems not to exist, please check.')
@@ -150,52 +202,46 @@ class Inout:
             inout.readImportFile()
         except:
             try:
-                tk.showerror('Import Error','Could not read the configuration file. Please check file path and/or file.')
+                showerror('Import Error','Could not read the configuration file. Please check file path and/or file.')
                 return
             except:
-                print('Could not read configuration file. Please check file path and/or file.')
+                print 'Could not read configuration file. Please check file path and/or file.'
                 exit()
 
     ## function for acually reading input configuration file
     def readImportFile(self):
         ## read config data from file
-        import configparser
-        Config = configparser.ConfigParser()
+        import ConfigParser
+        Config = ConfigParser.SafeConfigParser()
         ## read the config file
-        Config.read(data.inifilename, encoding="utf-8")
+        Config.read(data.inifilename)
         data.ipaddress     = Config.get('CommSettings','IP address')
         data.portno        = int(Config.get('CommSettings','port number'))
         data.modbusid      = int(Config.get('CommSettings','Modbus ID'))
         data.manufacturer  = Config.get('CommSettings','manufacturer')
         data.loginterval   = int(Config.get('CommSettings','logger interval'))
-        try: ## logfilename may be empty. if so data will printed to terminal
-            data.logfilename   = Config.get('FileSettings','log file')
-        except:
-            data.logfilename = None
-        data.logmaxbuffer  = int(Config.get('FileSettings','log buffer'))
         data.datasets      = eval(Config.get('TargetDataSettings','data table'))
 
     ## function for actually writing configuration data
     #
     def writeExportFile(self):
-        import io ## required for correct writing of unicode characters to file
         ## use ini file capabilities
-        import configparser
-        Config = configparser.ConfigParser()
+        import ConfigParser
+        Config = ConfigParser.ConfigParser()
 
         ## if the dialog was closed with no file selected ('cancel') just return
         if (data.inifilename == None):
             try: ## if running in command line no window can be displayed
-                tk.showerror('Configuration File Error','no file name given, please check.')
+                showerror('Configuration File Error','no file name given, please check.')
             except:
                 print('Configuration file error, no file name given, please check.')
             return
         ## write the data to the selected config file
         try:
-            inifile = io.open(data.inifilename,'w',encoding="utf-8")
+            inifile = open(data.inifilename,'w')
         except:
             try: ## if running in command line no window can be displayed
-                tk.showerror('Configuration File Error','a file with that name seems not to exist, please check.')
+                showerror('Configuration File Error','a file with that name seems not to exist, please check.')
             except:
                 print('Configuration file error, a file with that name seems not to exist, please check.')
             gui.selectExportFile()
@@ -203,128 +249,232 @@ class Inout:
 
         ## format the file structure
         Config.add_section('CommSettings')
-        Config.set('CommSettings','IP address',str(data.ipaddress))
-        Config.set('CommSettings','port number',str(data.portno))
-        Config.set('CommSettings','Modbus ID',str(data.modbusid))
-        Config.set('CommSettings','manufacturer',str(data.manufacturer))
-        Config.set('CommSettings','logger interval',str(data.loginterval))
-        Config.add_section('FileSettings')
-        Config.set('FileSettings','log file',str(data.logfilename))
-        Config.set('FileSettings','log buffer',str(data.logmaxbuffer))
+        Config.set('CommSettings','IP address',data.ipaddress)
+        Config.set('CommSettings','port number',data.portno)
+        Config.set('CommSettings','Modbus ID',data.modbusid)
+        Config.set('CommSettings','manufacturer',data.manufacturer)
+        Config.set('CommSettings','logger interval',data.loginterval)
         Config.add_section('TargetDataSettings')
-        Config.set('TargetDataSettings','data table',str(data.datasets))
+        Config.set('TargetDataSettings','data table',data.datasets)
         
         Config.write(inifile)
         inifile.close()
 
-    ## function for writing to log file
-    #  checks if it is an existing file with data in it and will append then
-    #  this function should only be called in intervals writing data in bulk (e.g. every 5 minutes)
-    #  to prevent wearout on solid state disks like SD CARDs
+  ############# BEGIN LCD functions ###############################################################
+  #
+    def lcd_init(self):
+        import time
+
+        # LCD interface setup
+        self.GPIO.setmode(self.GPIO.BCM)       # Use BCM GPIO numbers
+        self.GPIO.setup(self.LCD_E, self.GPIO.OUT)  # E
+        self.GPIO.setup(self.LCD_RS, self.GPIO.OUT) # RS
+        self.GPIO.setup(self.LCD_D4, self.GPIO.OUT) # DB4
+        self.GPIO.setup(self.LCD_D5, self.GPIO.OUT) # DB5
+        self.GPIO.setup(self.LCD_D6, self.GPIO.OUT) # DB6
+        self.GPIO.setup(self.LCD_D7, self.GPIO.OUT) # DB7
+     
+        # Initialise display
+        self.lcd_byte(0x33,self.LCD_CMD) # 110011 Initialise
+        self.lcd_byte(0x32,self.LCD_CMD) # 110010 Initialise
+        self.lcd_byte(0x06,self.LCD_CMD) # 000110 Cursor move direction
+        self.lcd_byte(0x0C,self.LCD_CMD) # 001100 Display On,Cursor Off, Blink Off
+        self.lcd_byte(0x28,self.LCD_CMD) # 101000 Data length, number of lines, font size
+        self.lcd_byte(0x01,self.LCD_CMD) # 000001 Clear display
+        time.sleep(self.E_DELAY)
+     
+    def lcd_byte(self, bits, mode):
+        # Send byte to data pins
+        # bits = data
+        # mode = True  for character
+        #        False for command
+        self.GPIO.output(self.LCD_RS, mode) # RS
+     
+        # High bits
+        self.GPIO.output(self.LCD_D4, False)
+        self.GPIO.output(self.LCD_D5, False)
+        self.GPIO.output(self.LCD_D6, False)
+        self.GPIO.output(self.LCD_D7, False)
+        if bits&0x10==0x10:
+            self.GPIO.output(self.LCD_D4, True)
+        if bits&0x20==0x20:
+            self.GPIO.output(self.LCD_D5, True)
+        if bits&0x40==0x40:
+            self.GPIO.output(self.LCD_D6, True)
+        if bits&0x80==0x80:
+            self.GPIO.output(self.LCD_D7, True)
+
+        # Toggle 'Enable' pin
+        self.lcd_toggle_enable()
+     
+        # Low bits
+        self.GPIO.output(self.LCD_D4, False)
+        self.GPIO.output(self.LCD_D5, False)
+        self.GPIO.output(self.LCD_D6, False)
+        self.GPIO.output(self.LCD_D7, False)
+        if bits&0x01==0x01:
+            self.GPIO.output(self.LCD_D4, True)
+        if bits&0x02==0x02:
+            self.GPIO.output(self.LCD_D5, True)
+        if bits&0x04==0x04:
+            self.GPIO.output(self.LCD_D6, True)
+        if bits&0x08==0x08:
+            self.GPIO.output(self.LCD_D7, True)
+     
+        # Toggle 'Enable' pin
+        self.lcd_toggle_enable()
+     
+    def lcd_toggle_enable(self):
+        # Toggle enable
+        import time
+        time.sleep(self.E_DELAY)
+        self.GPIO.output(self.LCD_E, True)
+        time.sleep(self.E_PULSE)
+        self.GPIO.output(self.LCD_E, False)
+        time.sleep(self.E_DELAY)
+     
+    def lcd_string(self, message, line, style):
+        # Send string to display
+        # style=1 Left justified
+        # style=2 Centred
+        # style=3 Right justified
+     
+        if style==1:
+            message = message.ljust(self.LCD_WIDTH," ")
+        elif style==2:
+            message = message.center(self.LCD_WIDTH," ")
+        elif style==3:
+            message = message.rjust(self.LCD_WIDTH," ")
+     
+        self.lcd_byte(line, self.LCD_CMD)
+     
+        for i in range(self.LCD_WIDTH):
+            self.lcd_byte(ord(message[i]),self.LCD_CHR)
+
+    ## function for writing to LCD
     #
-    def writeLoggerDataFile(self):
-        import csv      ## for writing in csv format
-        import datetime ## for daily log option
-        import io       ## required for correct writing of utf-8 characters
+    #   LCD layout (4x20 character display):
+    #            1    1    2
+    #   1---5----0----5----0
+    #   E_Wh:xxxxx DC_V: xxx
+    #   AC_W: xxxx P>W: xxxx 
+    #   P_in: xxxxx W
+    #   Load: xxxxx W  HH:MM
 
-        if (data.logfilename == None): ## when no filename is given, print data to terminal
-            if len(data.datawritebuffer) > 0: ## if the buffer has data write this to terminal
-                    print(data.datawritebuffer)
-                    data.datawritebuffer = [] ## empty buffer
-            else: ## we asume that this was called outside the poll loop with buffer size not reached
-                    print(data.databuffer)
-                    if (len(data.databuffer) == 1): ## if only one address was provided via command line
-                        print(data.databuffer[0][0],data.datasets[1][3],data.databuffer[0][1],data.datasets[1][4])
-                    data.databuffer = [] ## empty buffer
-            return
+    def writeLoggerDataLCD(self):
+        import datetime
 
-        thislogfile = data.logfilename  ## store filename locally for daily option
-        thisdate = str(datetime.date.today())
-        gui_checked_daily = 0
+        ## collect current time to display
+        thistime = datetime.datetime.now().strftime("%H:%M")
 
-        ## is GUI available or is command line mode active
-        if (gui_active):
-            gui_checked_daily = int(gui.checked_daily.get())
+        ## format the data for the display before actually sending to LCD
+        if (data.datawritebuffer[0][0] != None): ## at night there is no dc power
+            dc_watts = str(data.datawritebuffer[0][0]).ljust(4)
+        else:
+            dc_watts = str(0).ljust(4)
+        if (data.datawritebuffer[0][1] != None): ## at night there is no ac power
+            ac_watts = str(data.datawritebuffer[0][1]).ljust(4)
+        else:
+            ac_watts = str(0).ljust(4)
+        if (data.datawritebuffer[0][2] != None): ## at night there is no dc voltage
+            dc_volts = str(int(data.datawritebuffer[0][2])).ljust(3)
+        else:
+            dc_volts = str(0).ljust(3)
+        if (data.datawritebuffer[0][3] != None): ## at night there is no yield
+            e_wh     = str(data.datawritebuffer[0][3]).ljust(5)
+        else:
+            e_wh     = str(0).ljust(5)
+        p_in_wa  = str(data.datawritebuffer[0][4])
+        p_in_w   = str(p_in_wa+" W").ljust(7)
+        if (data.datawritebuffer[0][4] != None): ## at night there is no output
+            p_out_w = str(data.datawritebuffer[0][5]).ljust(4)
+        else:
+            p_out_w = str(0).ljust(4)
+        #   current load is a calculated value:= DC_power - Power_to_grid + Power_from_grid
+        load_wa = str(int(ac_watts) - int(p_out_w) + int(p_in_wa))
+        load_w = str(load_wa+" W").ljust(7)
 
-        ## if daily option is active
-        if ( (arguments['--daily-log'] == True) or (gui_checked_daily) ):
-            ## assumption: the logfile has a file extension
-            logfileparts = thislogfile.rpartition('.')
+        lcd_line_1 = "E_Wh:"+e_wh+" DC_V: "+dc_volts
+        lcd_line_2 = "AC_W: "+ac_watts+" P>W: "+p_out_w
+        lcd_line_3 = "P_in: "+p_in_w
+        lcd_line_4 = "Load: "+load_w+"  "+thistime
 
-            ## if there is no file extension we will append the current date to the name
-            if (logfileparts[0] == ''):
-                ## re-order logfileparts
-                thislogfile = logfileparts[2]+'_'+thisdate
-            else:
-                ## format the new logfilename with current date included
-                thislogfile = logfileparts[0]+'_'+thisdate+logfileparts[1]+logfileparts[2]
+        ## send the text to the LCD
+        self.lcd_string(lcd_line_1,self.LCD_LINE_1,1)
+        self.lcd_string(lcd_line_2,self.LCD_LINE_2,1)
+        self.lcd_string(lcd_line_3,self.LCD_LINE_3,1)
+        self.lcd_string(lcd_line_4,self.LCD_LINE_4,1)
+  #
+  #------------ END LCD functions -----------------------------------------------------------------
 
-        ## try to open the file. if it does not exist, create it on the way
-        try:
-            open(thislogfile, 'a').close()
-        except:
-            try: ## if running in command line no window can be displayed
-                tk.showerror('Log File Error','file cannot be accessed, please check.')
-            except:
-                print('Log file error. File cannot be accessed, please check.')
-            return
+  ############# BEGIN OLED functions ##############################################################
+  #
+    ## function for initializing OLED display
+    def OLED_init(self):
+        RST  = 24
+        self.OLEDdisp = SSD1306_128_64(rst=RST)
 
+        ## get display size
+        self.OLEDwidth  = self.OLEDdisp.width
+        self.OLEDheight = self.OLEDdisp.height
 
-        ## check if the file is empty, if so write the header information to the file
-        if os.stat(thislogfile).st_size==0:
-            with io.open(thislogfile,'at', encoding="utf-8") as logfile:
-                logwriter = csv.writer(logfile, quoting=csv.QUOTE_ALL)
-                ## ensure UTF8 encoding while writing
-                ## print out what data is contained and whats its format
-                for thisrow in data.datasets:
-                    logwriter.writerows([thisrow])
+        ## initialize library
+        self.OLEDdisp.begin()
 
-                logfile.write('-'*50+'\n') ## write a separator
-                ## format the column headers
-                columnheader = 'time'
-                for thisrow in data.datasets[1:]: ## omit first row containing 'address'
-                    ## ensure UTF8 encoding while writing, since this is the column heading
-                    #  no problem with converting to string even if stored as int
-                    thisrow = [s.encode('utf-8') for s in thisrow]
-                    ## use description field for columnheader if filled
-                    if (thisrow[3] != ''):
-                        thisdescription = ','+str(thisrow[3])
-                        ## if a unit is entered add it after the description
-                        if (thisrow[4] != ''):
-                            thisdescription += ' ('+str(thisrow[4])+')'
-                        columnheader += thisdescription
-                    else: ## no description, use address as header
-                        columnheader += ', '+str(thisrow[0])
+        ## clear display
+        self.OLEDdisp.clear()
+        self.OLEDdisp.display()
 
-                columnheader += '\n' ## line break before data rows
-                logfile.write(columnheader)
+        ## create blank image for drawing with 1-bit color depth (mode '1')
+        ## create a canvas to draw on
+        self.OLEDcanvas  = self.Image.new('1', (self.OLEDwidth, self.OLEDheight))
+
+        ## set OLED font
+        self.OLEDfont = self.ImageFont.load_default()
+
+    ## function for drawing on the OLED display
+    def OLED_print(self):
+
+        ## collect current time to display
+        thistime = datetime.datetime.now().strftime("%H:%M")
+
+        ## constants for easier handling of shapes
+        PADDING = 2
+        SHAPE_WIDTH = 20
+        TOP = PADDING
+        BOTTOM = self.OLEDheight - PADDING
+        # FONT = ImageFont.truetype("fyyont/arial.ttf", 12) # Schriftart, Schriftgröße
+
+        # counter for x position during drawing
+        imgX = PADDING
+
+        ## create drawing object placed on the canvas
+        drawing = self.ImageDraw.Draw(self.OLEDcanvas)
+
+        ## clear drawing area
+        drawing.rectangle((0,0,self.OLEDwidth,self.OLEDheight), outline=0, fill=0)
         
-        ## if the file is not empty we assume an append write to the file
-        if len(data.datawritebuffer) > 0: ## if the buffer has data write this to disk
-            with open(thislogfile,'at') as logfile:
-                logwriter = csv.writer(logfile)
-                logwriter.writerows(data.datawritebuffer)
-                data.datawritebuffer = [] ## empty buffer
-        else: ## we asume that this was called outside the poll loop with buffer size not reached
-            with open(thislogfile,'at') as logfile:
-                logwriter = csv.writer(logfile)
-                logwriter.writerows(data.databuffer)
-                data.databuffer = [] ## empty buffer
+        ## create drawing
+        drawing.line((imgX, top+45, imgX+self.OLEDwidth, top+45), fill=255)
+        drawing.text((imgX, top+50), thistime, font=self.OLEDfont, fill=255)
+        
+        ## send drawing data to OLED display
+        self.OLEDdisp.image(drawing)
+        self.OLEDdisp.display()
+
+  #
+  #------------ END OLED functions ----------------------------------------------------------------
 
     ## function for starting communication with target
     #
     def runCommunication(self):
-        ## pymodbus changed its API with >= 3.1. so we need to check what needs to be called
-        if pymodbus_version == "legacy":
-            from pymodbus.client.sync import ModbusTcpClient as ModbusClient
-        else:
-            from pymodbus.client import ModbusTcpClient as ModbusClient
+        from pymodbus.client.sync import ModbusTcpClient as ModbusClient
 
         self.client = ModbusClient(host=data.ipaddress, port=data.portno)
         try:
             self.client.connect()
         except:
-            tk.showerror('Modbus Connection Error','could not connect to target. Check your settings, please.')
+            showerror('Modbus Connection Error','could not connect to target. Check your settings, please.')
         
         self.pollTargetData()
 
@@ -334,12 +484,16 @@ class Inout:
         self.commtimer.start() ## needs to be a separate command else the timer is not cancel-able
 
     def stopCommunication(self):
-        #print('Stopped Communication')
+        #print ('Stopped Communication')
         self.commtimer.cancel()
-        ## flush data buffer to disk
-        self.writeLoggerDataFile()
+##!        ## flush data buffer to disk
+##!        self.writeLoggerDataFile()
     
-    ## function for polling data from the target and triggering writing to log file if set
+    ## function for polling data from the target and triggering writing to LCD
+    #   data to be polled is provided in fixed ini-file to enable fixed LCD layout
+    #   data order in ini-file: DC power [W], AC power [W], DC input voltage [V],
+    #                           daily yield [Wh], power from Grid [W], power to Grid [W]
+    #   current load is a calculated value:= DC_power - Power_to_grid + Power_from_grid
     #
     def pollTargetData(self):
         from pymodbus.payload import BinaryPayloadDecoder
@@ -353,26 +507,20 @@ class Inout:
             ## if the connection is somehow not possible (e.g. target not responding)
             #  show a error message instead of excepting and stopping
             try:
-                if pymodbus_version == "legacy":
-                    received = self.client.read_input_registers(address = int(thisrow[0]),
-                                                        count = data.moddatatype[thisrow[1]],
-                                                        unit = data.modbusid)
-                else:
-                    received = self.client.read_input_registers(address = int(thisrow[0]),
-                                                        count = data.moddatatype[thisrow[1]],
-                                                        slave = data.modbusid)
-
+                received = self.client.read_input_registers(address = int(thisrow[0]),
+                                                     count = data.moddatatype[thisrow[1]],
+                                                      unit = data.modbusid)
             except:
                 thisdate = str(datetime.datetime.now()).partition('.')[0]
                 thiserrormessage = thisdate + ': Connection not possible. Check settings or connection.'
                 if (gui_active):
-                    messagebox.showerror('Connection Error',thiserrormessage)
+                    showerror('Connection Error',thiserrormessage)
                     return  ## prevent further execution of this function
                 else:
-                    print(thiserrormessage)
+                    print thiserrormessage
                     return  ## prevent further execution of this function
 
-            message = BinaryPayloadDecoder.fromRegisters(received.registers, byteorder=Endian.Big, wordorder=Endian.Big)
+            message = BinaryPayloadDecoder.fromRegisters(received.registers, endian=Endian.Big)
             ## provide the correct result depending on the defined datatype
             if thisrow[1] == 'S32':
                 interpreted = message.decode_32bit_int()
@@ -381,9 +529,7 @@ class Inout:
             elif thisrow[1] == 'U64':
                 interpreted = message.decode_64bit_uint()
             elif thisrow[1] == 'STR32':
-                interpreted = message.decode_string(32).decode("utf-8").strip('\x00') ## convert bytes to str
-            elif thisrow[1] == 'STR24': ## workaround when SMA shorted the length of a string register to 24 bytes
-                interpreted = message.decode_string(24).decode("utf-8").strip('\x00') ## convert bytes to str
+                interpreted = message.decode_string(32)
             elif thisrow[1] == 'S16':
                 interpreted = message.decode_16bit_int()
             elif thisrow[1] == 'U16':
@@ -402,7 +548,6 @@ class Inout:
                     displaydata = float(interpreted) / 100
                 elif thisrow[2] == 'FIX1':
                     displaydata = float(interpreted) / 10
-
                 else:
                     displaydata = interpreted
 
@@ -413,19 +558,15 @@ class Inout:
         if (gui_active == 1):
             gui.updateLoggerDisplay()
 
-        ## for logging purposes we need a time stamp first
-        stampedvector = []
-        ## we don't need the microseconds of the date return value, so we strip it
-        stampedvector.append(str(datetime.datetime.now()).partition('.')[0])
-        stampedvector += data.datavector
-        data.databuffer.append(stampedvector)
-        #print data.databuffer
-        ## is the buffer large enough to be written to file system?
-        if (len(data.databuffer) >= data.logmaxbuffer):
-            ## ensure that the data to write will not be altered by faster poll cycles
-            data.datawritebuffer = data.databuffer
-            data.databuffer = [] ## empty the buffer
-            self.writeLoggerDataFile() ## call write routine to save data on disk
+        ## save collected data to buffer
+        data.databuffer.append(data.datavector)
+
+        ## ensure that the data to write will not be altered by faster poll cycles
+        data.datawritebuffer = data.databuffer
+        data.databuffer = [] ## empty the buffer
+        self.writeLoggerDataLCD() ## call write routine to print data on LCD
+        if (self.oled_active == 1):
+            self.OLED_print ## update OLED display
 
     ## function adds dataset to the datasets list
     #   also updates the displayed list
@@ -433,20 +574,22 @@ class Inout:
     #
     def addDataset(self,inputdata):
         data.datasets.append(inputdata)
-        print('Current datasets: '),(data.datasets)
+        print 'Current datasets: ',(data.datasets)
 
     ## function for saving program state at program exit
     #
     def cleanOnExit(self):
+        import RPi.GPIO as GPIO
         try: ## stop data logging on exit, catch a possible exception, when communication is not running
             self.stopCommunication()
         except:
-            print('')
+            print ''
 
         ## if data is available, write polled data from buffer to disk
         if len(data.databuffer):
             self.writeLoggerDataFile()
-        print('PyModMon has exited cleanly.')
+        self.GPIO.cleanup() 
+        print 'PyModMonLCD has exited cleanly.'
 
     ## function for printing the current configuration settings
     #   only used for debug purpose
@@ -463,7 +606,7 @@ class Gui:
     def __init__(self,master):
 
         ## configure app window
-        master.title('Python Modbus Monitor')
+        master.title('Python Modbus Monitor LCD')
         master.minsize(width=550, height=450)
         master.geometry("550x550")  ## scale window a bit bigger for more data lines
         self.settingscanvas = Canvas(master,bg="yellow",highlightthickness=0)
@@ -492,7 +635,6 @@ class Gui:
         filemenu = Menu(menubar, tearoff=0)
         filemenu.add_command(label='Import Configuration File…',command=self.selectImportFile)
         filemenu.add_command(label='Export Configuration File…',command=self.selectExportFile)
-        filemenu.add_command(label='Set Logger Data File…',command=self.selectLoggerDataFile)
         filemenu.add_command(label='Save Current Configuration',command=inout.writeExportFile)
         filemenu.add_command(label='Exit',command=self.closeWindow)
 
@@ -519,24 +661,6 @@ class Gui:
         self.input_inifilename.grid(row=0,column=1,sticky='EW')     ## make input field streching with window
         
         Button(filesframe,text='…',command=(self.selectImportFile)).grid(row=0,column=2,sticky='W') ## opens dialog to choose file from
-
-        ## input mask for data logger file
-        #
-        Label(filesframe, text='Data Logger File:').grid(row=1,sticky='E')
-
-        self.input_logfilename = Entry(filesframe, width = 40)
-        self.input_logfilename.bind('<Return>',self.setLogFile)     ## enable file name to be set by [Enter] or [Return]
-        self.input_logfilename.grid(row=1,column=1,sticky='EW')     ## make input field streching with window
-
-        Button(filesframe,text='…',command=(self.selectLoggerDataFile)).grid(row=1,column=2,sticky='W') ## opens dialog to choose file from
-
-        ## enable daily log option in GUI, has no own action, will be regarded during log write
-        self.checked_daily = IntVar()
-        self.checkManageData=Checkbutton(filesframe,
-                                         text='Create daily log file',
-                                         variable=self.checked_daily
-                                         )
-        self.checkManageData.grid(row=2,column=0,columnspan=3)
 
         Button(filesframe,text='⟲ Re-Read Configuration', command=(self.displaySettings)).grid(row=3,column=0,sticky='W') ## triggers re-read of the configuration file
         Button(filesframe,text='⤓ Save Current Configuration', command=(inout.writeExportFile)).grid(row=3,column=1,sticky='W') ## triggers re-read of the configuration file
@@ -645,10 +769,6 @@ class Gui:
         self.displayCommSettings()
         self.displayDatasets()
 
-        ## update logfile display
-        self.input_logfilename.delete(0,END)
-        self.input_logfilename.insert(0,data.logfilename)
-
         ## update displayed filename in entry field
         self.input_inifilename.delete(0,END)
         self.input_inifilename.insert(0,data.inifilename)
@@ -716,7 +836,7 @@ class Gui:
         self.current_ipaddress = Label(self.settingsframe, text=data.ipaddress, bg='white')
         self.current_ipaddress.grid (row=2,column=1,sticky='EW')
         self.input_ipaddress = Entry(self.settingsframe, width=15, fg='blue')
-        self.input_ipaddress.grid(row=2,column=2, sticky = 'W') # needs to be on a seperate line for variable to work
+        self.input_ipaddress.grid(row=2,column=2, sticky = 'W') # needs to be on a separate line for variable to work
         self.input_ipaddress.bind('<Return>',self.updateCommSettings) ## enable the Entry to update without button click
 
         self.current_portno = Label(self.settingsframe, text=data.portno, bg='white')
@@ -750,13 +870,13 @@ class Gui:
 
         #print('update Communication Settings:')
         if self.input_ipaddress.get() != '':
-            thisipaddress = str(self.input_ipaddress.get())
+            thisipaddress = unicode(self.input_ipaddress.get())
             ## test if the data seems to be a valid IP address
             try:
                 self.ip_address(thisipaddress)
-                data.ipaddress = str(self.input_ipaddress.get())
+                data.ipaddress = unicode(self.input_ipaddress.get())
             except:
-                messagebox.showerror('IP Address Error','the data you entered seems not to be a correct IP address')
+                showerror('IP Address Error','the data you entered seems not to be a correct IP address')
             ## if valid ip address entered store it
 
         if self.input_portno.get() != '':
@@ -766,7 +886,7 @@ class Gui:
                 if check_portno < 0:
                     raise ValueError
             except ValueError:
-                messagebox.showerror('Port Number Error','the value you entered seems not to be a valid port number')
+                showerror('Port Number Error','the value you entered seems not to be a valid port number')
                 return
             data.portno = int(self.input_portno.get())
 
@@ -777,7 +897,7 @@ class Gui:
                 if check_modbusid < 0:
                     raise ValueError
             except ValueError:
-                messagebox.showerror('Port Number Error','the value you entered seems not to be a valid Modbus ID')
+                showerror('Port Number Error','the value you entered seems not to be a valid Modbus ID')
                 return
             data.modbusid = int(self.input_modbusid.get())
 
@@ -791,7 +911,7 @@ class Gui:
                 if check_loginterval < 1:
                     raise ValueError
             except ValueError:
-                messagebox.showerror('Logger Interval Error','the value you entered seems not to be a valid logger intervall')
+                showerror('Logger Interval Error','the value you entered seems not to be a valid logger intervall')
                 return
             data.loginterval = int(self.input_loginterval.get())
 
@@ -810,7 +930,7 @@ class Gui:
     ## function for reading configuration file
     #
     def selectImportFile(self):
-        data.inifilename = filedialog.askopenfilename(title = 'Choose Configuration File',defaultextension='.ini',filetypes=[('Configuration file','*.ini'), ('All files','*.*')])
+        data.inifilename = askopenfilename(title = 'Choose Configuration File',defaultextension='.ini',filetypes=[('Configuration file','*.ini'), ('All files','*.*')])
 
         ## update displayed filename in entry field
         self.input_inifilename.delete(0,END)
@@ -836,7 +956,7 @@ class Gui:
     ## function for selecting configuration export file
     #
     def selectExportFile(self):
-        data.inifilename = filedialog.asksaveasfilename(initialfile = data.inifilename,
+        data.inifilename = asksaveasfilename(initialfile = data.inifilename,
                                                   title = 'Choose Configuration File',
                                                   defaultextension='.ini',
                                                   filetypes=[('Configuration file','*.ini'), ('All files','*.*')])
@@ -846,13 +966,6 @@ class Gui:
         self.input_inifilename.insert(0,data.inifilename)
 
         inout.writeExportFile()
-
-    ## function for choosing logger data file
-    #
-    def selectLoggerDataFile(self):
-        data.logfilename = filedialog.asksaveasfilename(initialfile = data.logfilename, title = 'Choose File for Logger Data', defaultextension='.csv',filetypes=[('CSV file','*.csv'), ('All files','*.*')])
-        self.input_logfilename.delete(0,END)
-        self.input_logfilename.insert(0,data.logfilename)
 
     ## function for updating the current received data on display
     #
@@ -878,12 +991,6 @@ class Gui:
     def getInputFile(self,event):
         data.inifilename = event.widget.get()
 
-    ## function for updating the log file path
-    #   with the path entered into the entry field
-    #
-    def setLogFile(self,event):
-        data.logfilename = event.widget.get()
-
     ## function adds dataset to the datasets list
     #   also updates the displayed list
     #   new datasets are not added to the config file
@@ -895,12 +1002,12 @@ class Gui:
                           self.input_description.get(),
                           self.input_dataunit.get()])
         self.displayDatasets()
-        #print(data.datasets)
+        #print (data.datasets)
 
     ## function for displaying the about dialog
     #
     def aboutDialog(self):
-        messagebox.showinfo('About Python Modbus Monitor'\
+        showinfo('About Python Modbus Monitor'\
                  ,'This is a program that acts as a modbus slave to receive data from modbus masters like SMA solar inverters. \nYou can choose the data to be received via the GUI and see the live data. \nYou can also call the programm from the command line with a configuration file given for the data to be retrieved. \nThe configuration file can be generated using the GUI command \"File\"→\"Export Configuration\"')
         
     ## function for closing the program window
@@ -922,9 +1029,9 @@ atexit.register(inout.cleanOnExit)
 gui_active = 0
 if (arguments['--nogui'] == False):
     ## load graphical interface library
-    from tkinter import *
-    from tkinter import messagebox
-    from tkinter import filedialog
+    from Tkinter import *
+    from tkMessageBox import *
+    from tkFileDialog import *
     try: ## if the program was called from command line without parameters
         window = Tk()
         ## create window container
@@ -939,7 +1046,7 @@ if (arguments['--nogui'] == False):
     except TclError:
         ## check if one of the required command line parameters is set
         if ((arguments['--inifile'] == None) and (arguments['--ip'] == None)):
-            print('Error. No graphical interface found. Try "python pymodmon.py -h" for help.')
+            print 'Error. No graphical interface found. Try "python pymodmon.py -h" for help.'
             exit()
         ## else continue with command line execution
 
@@ -948,11 +1055,6 @@ if (arguments['--nogui'] == False):
 ## read the configuration file
 if (arguments['--inifile'] != None):
     inout.checkImportFile()
-
-## get log file name and try to access it
-if (arguments['--logfile'] != None):
-    data.logfilename = str(arguments['--logfile'])
-    inout.writeLoggerDataFile() ## initial write to file, tests for file
 
 ## get log interval value and check for valid value
 if (arguments['--loginterval'] != None):
@@ -964,17 +1066,6 @@ if (arguments['--loginterval'] != None):
         print('Log interval error. The interval must be 1 or more.')
         exit()
     data.loginterval = int(arguments['--loginterval'])
-
-## get log buffer size and check for valid value
-if (arguments['--logbuffer'] != None):
-    try:
-        check_logbuffer = int(arguments['--logbuffer'])
-        if check_logbuffer < 1:
-            raise ValueError
-    except ValueError:
-        print('Log buffer error. The log buffer must be 1 or more.')
-        exit()
-    data.logmaxbuffer = int(arguments['--logbuffer'])
 
 ## get all values for single-value reads
 ## all obligatory entries. missing entries will be caught by docopt.
@@ -991,11 +1082,41 @@ if (arguments['--ip'] != None): ## just a check for flow logic, skipped when wor
                            str(arguments['--descr']),
                            str(arguments['--unit']) ] )
 
+if (arguments['--lcdl'] != None): ## just a check for flow logic, skipped when working with inifile
+# currently this parameter is not implemented
+    try:
+        check_lcdline = int(arguments['--lcdl'])
+        if ((check_lcdline < 1) or (check_lcdline > 4)):
+            raise ValueError
+    except ValueError:
+        print('LCD line error. The line must be between 1 and 4.')
+        exit()
+    inout.lcd_line = int(arguments['--lcdl'])
+
+if (arguments['--lcdc'] != None): ## just a check for flow logic, skipped when working with inifile
+# currently this parameter is not implemented
+    try:
+        check_lcdcolumn = int(arguments['--lcdc'])
+        if ((check_lcdcolumn < 1) or (check_lcdcolumn > 4)):
+            raise ValueError
+    except ValueError:
+        print('LCD line error. The line must be between 1 and 4.')
+        exit()
+    inout.lcd_column = int(arguments['--lcdc'])
+
+if (arguments['--oled'] == True):
+        inout.oled_active = 1
+        inout.OLED_init()
+
+## initialize LCD
+inout.lcd_init()
+
 ## start polling data
 ## single poll first
 inout.runCommunication()
 ## if --single is set, exit immediately
 if (arguments['--single'] == True):
     inout.stopCommunication()
-    print('single run')
+    print 'single run'
     exit()
+
