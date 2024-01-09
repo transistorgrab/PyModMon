@@ -372,7 +372,7 @@ class Inout:
                     print(thiserrormessage)
                     return  ## prevent further execution of this function
 
-            message = BinaryPayloadDecoder.fromRegisters(received.registers, byteorder="Endian.Big", wordorder="Endian.Big")
+            message = BinaryPayloadDecoder.fromRegisters(received.registers, byteorder=Endian.BIG, wordorder=Endian.BIG)
             ## provide the correct result depending on the defined datatype
             if thisrow[1] == 'S32':
                 interpreted = message.decode_32bit_int()
